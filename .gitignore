@@ -1,3 +1,10 @@
+# ignore heavy non-code files
+data/
+models/
+
+# pycharm specific
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
