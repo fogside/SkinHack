@@ -5,7 +5,7 @@ import os
 import matplotlib.image as mpimg
 
 
-class AgeGroupGenderBatchGenerator(object):
+class AgeGenderBatchGenerator(object):
     """
     Generates batches of prepared images labeled with age group and gender.
     """
@@ -13,7 +13,7 @@ class AgeGroupGenderBatchGenerator(object):
         """
         :param X: python list or numpy array of images.
         Each image should be a numpy array of shape (height, width, channels)
-        :param age: python list or numpy array of age group labels
+        :param age: python list or numpy array of age group or age labels
         Each label should be a numpy array of shape (1,)
         :param gender: python list or numpy array of gender labels
         Each label should be a numpy array of shape (1,)
@@ -45,6 +45,9 @@ class AgeGroupGenderBatchGenerator(object):
         self.cur_gender = self.age[self.index: self.index + 1]
 
     def get_supervised_batch(self):
+        """
+        :return: A tuple of numpy arrays: (data_batch, age_labels, gender_labels)
+        """
         batch_patches = []
         batch_age = []
         batch_gender = []
@@ -85,6 +88,9 @@ class AgeGroupGenderBatchGenerator(object):
         return np.concatenate(batch_patches), np.concatenate(batch_age), np.concatenate(batch_gender)
 
     def get_unsupervised_batch(self):
+        """
+        :return: A batch of data as a numpy array
+        """
         batch_X, _, _ = self.get_supervised_batch()
 
         return batch_X
@@ -125,6 +131,9 @@ class SegmentationBatchGenerator(object):
         self.segm = self.Y[self.index]
 
     def get_supervised_batch(self):
+        """
+        :return: A tuple of numpy arrays: (data_batch, segmentation_masks)
+        """
         batch_patches = []
         batch_segms = []
 
@@ -162,6 +171,9 @@ class SegmentationBatchGenerator(object):
         return np.concatenate(batch_patches), np.concatenate(batch_segms)
 
     def get_unsupervised_batch(self):
+        """
+        :return: A batch of data as a numpy array
+        """
         batch_X, _ = self.get_supervised_batch()
 
         return batch_X
