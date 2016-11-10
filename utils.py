@@ -8,3 +8,5 @@ def _start_shell(local_ns=None):
         user_ns.update(local_ns)
     user_ns.update(globals())
     IPython.start_ipython(argv=[], user_ns=user_ns)
+
+
