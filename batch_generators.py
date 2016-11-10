@@ -5,9 +5,21 @@ import numpy as np
 
 class AgeGenderBatchGenerator(object):
     """
-    Generates batches of prepared images.
+    Generates batches of prepared images labeled with age group and gender.
     """
     def __init__(self, X, age, gender, batch_size, patch_shape, stride, random_offset):
+        """
+        :param X: python list or numpy array of images.
+        Each image should be a numpy array of shape (height, width, channels)
+        :param age: python list or numpy array of age group labels
+        Each label should be a numpy array of shape (1,)
+        :param gender: python list or numpy array of gender labels
+        Each label should be a numpy array of shape (1,)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
 
         self.X = X
         self.age = age
@@ -78,10 +90,19 @@ class AgeGenderBatchGenerator(object):
 
 class SegmentationBatchGenerator(object):
     """
-    Generates batches of prepared images.
+    Generates batches of prepared images labeled with age group and gender.
     """
     def __init__(self, X, Y, batch_size, patch_shape, stride, random_offset):
-
+        """
+        :param X: python list or numpy array of images.
+        Each image should be a numpy array of shape (height, width, channels)
+        :param Y: python list or numpy array of segmentation masks.
+        Each image should be a numpy array of shape (height, width, channels)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
         self.X = X
         self.Y = Y
         self.batch_size = batch_size
