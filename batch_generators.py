@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import numpy as np
+import os
+import matplotlib.image as mpimg
 
 
 class AgeGroupGenderBatchGenerator(object):
@@ -31,7 +33,7 @@ class AgeGroupGenderBatchGenerator(object):
         self.i = np.random.randint(random_offset[0])
         self.j = self.offset
 
-        self.num_images = X.shape[0]
+        self.num_images = len(X)
 
         self.patch_shape = patch_shape
 
@@ -42,7 +44,7 @@ class AgeGroupGenderBatchGenerator(object):
         self.cur_age = self.age[self.index: self.index + 1]
         self.cur_gender = self.age[self.index: self.index + 1]
 
-    def get_supervised_train_batch(self):
+    def get_supervised_batch(self):
         batch_patches = []
         batch_age = []
         batch_gender = []
@@ -82,8 +84,8 @@ class AgeGroupGenderBatchGenerator(object):
 
         return np.concatenate(batch_patches), np.concatenate(batch_age), np.concatenate(batch_gender)
 
-    def get_unsupervised_train_batch(self):
-        batch_X, _, _ = self.get_supervised_train_batch()
+    def get_unsupervised_batch(self):
+        batch_X, _, _ = self.get_supervised_batch()
 
         return batch_X
 
@@ -112,7 +114,7 @@ class SegmentationBatchGenerator(object):
         self.i = np.random.randint(random_offset[0])
         self.j = self.offset
 
-        self.num_images = X.shape[0]
+        self.num_images = len(X)
 
         self.patch_shape = patch_shape
 
@@ -122,7 +124,7 @@ class SegmentationBatchGenerator(object):
         self.image = self.X[self.index]
         self.segm = self.Y[self.index]
 
-    def get_supervised_train_batch(self):
+    def get_supervised_batch(self):
         batch_patches = []
         batch_segms = []
 
@@ -159,7 +161,39 @@ class SegmentationBatchGenerator(object):
 
         return np.concatenate(batch_patches), np.concatenate(batch_segms)
 
-    def get_unsupervised_train_batch(self):
-        batch_X, _ = self.get_supervised_train_batch()
+    def get_unsupervised_batch(self):
+        batch_X, _ = self.get_supervised_batch()
 
         return batch_X
+
+
+class ImageFolderReader(object):
+    """
+    Cyclic reader of folders of images.
+    """
+    def __init__(self, path):
+        self.buffer_size = 100
+        _path = path if path[-1] == '/' else path + '/'
+
+        self.files_list = []
+        for (_, _, filenames) in os.walk(_path):
+            self.files_list.extend((_path + x for x in filenames))
+            break
+
+        self.index = 0
+
+    def read(self, n):
+        """
+        :param n:
+        :return: a list of pictures as numpy arrays of shape (height, width, channels).
+        Shapes may differ for different images.
+        """
+        file_names = []
+        for i in range(n):
+            file_names.append(self.files_list[self.index])
+            self.index = (self.index + 1) % len(self.files_list)
+
+        return list(map(mpimg.imread, file_names))
+
+    def read_all(self):
+        return self.read(len(self.files_list))
