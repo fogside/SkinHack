@@ -3,7 +3,7 @@ from __future__ import division, print_function
 import numpy as np
 
 
-class AgeGenderBatchGenerator(object):
+class AgeGroupGenderBatchGenerator(object):
     """
     Generates batches of prepared images labeled with age group and gender.
     """
