@@ -313,6 +313,259 @@ class Augmentor(object):
             return aug_image_batch
 
 
+class TripleBatchGenerator(object):
+    """
+    Generates batches of prepared images without any labels.
+    """
+
+    def __init__(self, X, batch_size, patch_shape, stride, random_offset):
+        """
+        :param X: python list or numpy array of images.
+        Each image should be a numpy array of shape (height, width, channels)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
+        self.X = X
+        self.batch_size = batch_size
+        self.batch_remainder = batch_size
+
+        self.index = 0
+        self.offset = np.random.randint(random_offset[1])
+        self.i = np.random.randint(random_offset[0])
+        self.j = self.offset
+
+        self.num_images = len(X)
+
+        self.patch_shape = patch_shape
+
+        self.stride = stride
+        self.random_offset = random_offset
+
+        self.image = self.X[self.index]
+        self.image2 = self.X[self.index + 1]
+
+    """
+    Collecting patches to make first pathes in each triple
+    """
+
+    def get_patches_from_first_image(self):
+        """
+        :return: A batch of data as a numpy array
+        """
+        batch_patches = []
+
+        for i in range(self.batch_size):
+            self.batch_remainder -= 1
+            patch = self.image[self.i: self.i + self.patch_shape[0], self.j: self.j + self.patch_shape[1]]
+            batch_patches.append(np.expand_dims(patch, 0))
+
+            self.j += self.stride[1]
+
+            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+
+                self.i += self.stride[0]
+                self.j = self.offset
+
+                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+
+                    self.i = np.random.randint(self.random_offset[0])
+                    self.offset = np.random.randint(self.random_offset[1])
+                    self.j = self.offset
+
+                    self.index += 1
+
+                    if self.index >= self.num_images:
+                        self.index = 0
+                        order = np.random.permutation(self.X.shape[0])
+                        self.X = self.X[order]
+
+                    self.image = self.X[self.index]
+                    return np.concatenate(batch_patches)
+
+            if self.batch_remainder == 0:
+                return np.concatenate(batch_patches)
+
+        return np.concatenate(batch_patches)
+
+    """
+    Getting random patch from image
+    """
+
+    def get_random_patch(self):
+        I = np.random.randint(self.image.shape[0] - self.patch_shape[0])
+        J = np.random.randint(self.image.shape[1] - self.patch_shape[1])
+        patch = self.image2[I: I + self.patch_shape[0], J: J + self.patch_shape[1]]
+        return patch
+
+    """
+    Making amount of triples
+    """
+
+    def get_triple_batch(self):
+        """
+        :return: A batch of data as a numpy array n x 3
+        """
+        triple_batch = []
+
+        while (self.batch_remainder > 0):
+            first_im_patches = self.get_patches_from_first_image()
+            np.random.shuffle(first_im_patches)
+
+            for i in range(first_im_patches.shape[0]):
+                j = np.random.randint(self.X.shape[0] - 2)
+                if j >= self.index:
+                    j += 1
+                self.image2 = self.X[j]
+                triple_batch.append([first_im_patches[i], first_im_patches[(i + 1) % first_im_patches.shape[0]], \
+                                     self.get_random_patch()])
+                # print(self.index, j)
+
+        self.batch_remainder = self.batch_size
+        return np.array(triple_batch)
+
+
+class SegmentationBatchGeneratorFolder(object):
+    """
+    Generates batches of prepared images labeled with age group and gender.
+    """
+
+    def __init__(self, number_of_images, image_path, mask_path, batch_size=100, patch_shape=(200, 200), stride=(160, 160), random_offset=(100, 100)):
+        """
+        :param pathX: path
+        :param image_path:
+        :param mask_path: folder with images with masks on them
+        Each image should be a numpy array of shape (height, width, channels)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
+
+        self.reader = ImageSegmentationFolderReader(path=image_path, path_m=mask_path)
+        self.X, self.Y = self.reader.read(number_of_images)
+        self.Y = self.mask(np.array(self.Y))
+
+        self.batch_size = batch_size
+        self.index = 0
+        self.offset = np.random.randint(random_offset[1])
+        self.i = np.random.randint(random_offset[0])
+        self.j = self.offset
+
+        self.num_images = len(self.X)
+
+        self.patch_shape = patch_shape
+
+        self.stride = stride
+        self.random_offset = random_offset
+
+        self.image = self.X[self.index]
+        self.segm = self.Y[self.index]
+
+    def mask(self, btch, color_thresholds=(220, 20, 20)):  # batch(batch_size, height, width, n_channels)
+        """
+        Calculates a binary mask of the marked area. If the marker wasn't clear enough, borders may be interpolated.
+        :return: An 4-D array of shape (batch_size, height, width, n_channels)
+        """
+        red, green, blue = btch[:, :, :, 0], btch[:, :, :, 1], btch[:, :, :, 2]
+        mask = (red > color_thresholds[0]) & (green < color_thresholds[1]) & (blue < color_thresholds[2])
+        mask = mask.astype(int)
+        mask = mask.reshape([btch.shape[0], btch.shape[1], btch.shape[2], 1])
+        return mask
+
+    def get_supervised_batch(self):
+        """
+        :return: A tuple of numpy arrays: (data_batch, segmentation_masks)
+        """
+        batch_patches = []
+        batch_segms = []
+
+        for i in range(self.batch_size):
+            print(i)
+            patch = self.image[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
+            batch_patches.append(np.expand_dims(patch, 0))
+            segm = self.segm[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
+            batch_segms.append(np.expand_dims(segm, 0))
+
+            self.j += self.stride[1]
+
+            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+
+                self.i += self.stride[0]
+                self.j = self.offset
+
+                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+
+                    self.i = np.random.randint(self.random_offset[0])
+                    self.offset = np.random.randint(self.random_offset[1])
+                    self.j = self.offset
+
+                    self.index += 1
+
+                    if self.index >= self.num_images:
+                        self.index = 0
+                        order = np.random.permutation(self.X.shape[0])
+                        self.X = self.X[order]
+                        self.Y = self.Y[order]
+
+                    self.image = self.X[self.index]
+                    self.segm = self.Y[self.index]
+                    print("preparing for concatinaiton")
+        return np.concatenate(batch_patches), np.concatenate(batch_segms)
+
+    def get_unsupervised_batch(self):
+        """
+        :return: A batch of data as a numpy array
+        """
+        batch_X, _ = self.get_supervised_batch()
+
+        return batch_X
+
+
+class ImageSegmentationFolderReader(object):
+    """
+    Cyclic reader of folders of images.
+    """
+    def __init__(self, path_m, path):
+        self.buffer_size = 100
+        _path = path if path[-1] == '/' else path + '/'
+        _path_m = path_m if path_m[-1] == '/' else path_m + '/'
+        self.files_list = []
+        self.files_list_m = []
+        for (_, _, filenames) in os.walk(_path):
+            self.files_list.extend((_path + x for x in filenames))
+            self.files_list_m.extend((_path_m + self.add(x) for x in filenames))
+            break
+        self.index = 0
+
+    def add(self, path):
+        ind = path.find('.')
+        # if names of files are same in both folders delete _m ---------------------------------------------------------
+        path = path[:ind] + "_m" + path[ind:]
+        return path
+
+    def read(self, n):
+        """
+        :param n:
+        :return: a list of pictures as numpy arrays of shape (height, width, channels).
+        Shapes may differ for different images.
+        """
+        file_names = []
+        file_names_m = []
+        for i in range(n):
+            file_names.append(self.files_list[self.index])
+            file_names_m.append(self.files_list_m[self.index])
+            self.index = (self.index + 1) % len(self.files_list)
+        print("Images loaded")
+        X, Y = list(map(mpimg.imread, file_names)), list(map(mpimg.imread, file_names_m))
+        return X, Y
+
+
+
+    def read_all(self):
+        return self.read(len(self.files_list))
+
 """
 Example^
 
