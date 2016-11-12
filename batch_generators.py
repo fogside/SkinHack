@@ -725,8 +725,7 @@ class TripleBatchGeneratorFolder(object):
         self.stride = stride
         self.random_offset = random_offset
 
-        self.image  = self.files_list.read_by_index(self.index)
-        self.image2 = self.files_list.read_by_index(self.index + 1)
+        self.image, image2  = self.files_list.read(2)
 
     """
     Collecting patches to make first pathes in each triple
@@ -761,10 +760,8 @@ class TripleBatchGeneratorFolder(object):
 
                     if self.index >= self.num_images:
                         self.index = 0
-                        order = np.random.permutation(self.X.shape[0])
-                        self.X = self.X[order]
 
-                    self.image = self.files_list.read_by_index(self.index)
+                    self.image = self.files_list.read(1)[0]
                     return np.concatenate(batch_patches)
 
             if self.batch_remainder == 0:
