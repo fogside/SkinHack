@@ -27,6 +27,7 @@ class Trainer(object):
     def train(self, num_steps, model_file=None):
         print("Train started for %d steps" % num_steps)
         sess = tf.Session()
+        sess.run(tf.initialize_all_variables())
         log = open(self.log_name, 'w')
         for i in range(num_steps):
             batch = self.batch_func_train()
@@ -39,9 +40,9 @@ class Trainer(object):
 
                 metric_values = sess.run(self.metric_train_tensors, feed_dict)
                 
-                for i in range(metric_values):
-                    log.write(self.metric_train_tensors[i] + ' ' + str(metric_values[i]) + '\n')
-                    print('train ' + self.metric_train_tensors[i] + ' ' + str(metric_values[i]))
+                for i in range(len(metric_values)):
+                    log.write(self.metric_train_names[i] + ' ' + str(metric_values[i]) + '\n')
+                    print('train ' + self.metric_train_names[i] + ' ' + str(metric_values[i]))
                 log.write("---\n")
                 
                 if self.valid_inputs is not None:
@@ -52,7 +53,7 @@ class Trainer(object):
                     
                     metric_values = sess.run(self.metric_valid_tensors, feed_dict)
     
-                    for i in range(metric_values):
+                    for i in range(len(metric_values)):
                         log.write(self.metric_valid_names[i] + ' ' + str(metric_values[i]) + '\n')
                         print('validation ' + self.metric_valid_names[i] + ' ' + str(metric_values[i]))
                     log.write("---\n")

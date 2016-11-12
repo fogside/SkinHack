@@ -281,6 +281,9 @@ class ImageFolderReader(object):
     def read_all(self):
         return self.read(len(self.files_list))
 
+    def read_by_index(self, index):
+        return mpimg.imread(self.files_list[index])
+
 
 class Augmentor(object):
     def __init__(self, rotation_range=30, width_shift_range=0.2, height_shift_range=0.2, shear_range=0.2,
@@ -722,8 +725,8 @@ class TripleBatchGeneratorFolder(object):
         self.stride = stride
         self.random_offset = random_offset
 
-        self.image  = self.files_list.read_one(self.index)
-        self.image2 = self.files_list.read_one(self.index + 1)
+        self.image  = self.files_list.read_by_index(self.index)
+        self.image2 = self.files_list.read_by_index(self.index + 1)
 
     """
     Collecting patches to make first pathes in each triple
@@ -761,7 +764,7 @@ class TripleBatchGeneratorFolder(object):
                         order = np.random.permutation(self.X.shape[0])
                         self.X = self.X[order]
 
-                    self.image = self.files_list.read_one(self.index)
+                    self.image = self.files_list.read_by_index(self.index)
                     return np.concatenate(batch_patches)
 
             if self.batch_remainder == 0:
@@ -797,7 +800,7 @@ class TripleBatchGeneratorFolder(object):
                 j = np.random.randint(len(self.files_list.files_list) - 2)
                 if j >= self.index:
                     j += 1
-                self.image2 = self.files_list.read_one(j)
+                self.image2 = self.files_list.read_by_index(j)
                 triple_batch.append([first_im_patches[i], first_im_patches[(i + 1) % first_im_patches.shape[0]], \
                                      self.get_random_patch()])
                 # print(self.index, j)
