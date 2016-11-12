@@ -482,7 +482,6 @@ class SegmentationBatchGeneratorFolder(object):
         batch_segms = []
 
         for i in range(self.batch_size):
-            print(i)
             patch = self.image[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
             batch_patches.append(np.expand_dims(patch, 0))
             segm = self.segm[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
@@ -505,13 +504,12 @@ class SegmentationBatchGeneratorFolder(object):
 
                     if self.index >= self.num_images:
                         self.index = 0
-                        order = np.random.permutation(self.X.shape[0])
+                        order = np.random.permutation(len(X))
                         self.X = self.X[order]
                         self.Y = self.Y[order]
 
                     self.image = self.X[self.index]
                     self.segm = self.Y[self.index]
-                    print("preparing for concatinaiton")
         return np.concatenate(batch_patches), np.concatenate(batch_segms)
 
     def get_unsupervised_batch(self):
@@ -557,7 +555,6 @@ class ImageSegmentationFolderReader(object):
             file_names.append(self.files_list[self.index])
             file_names_m.append(self.files_list_m[self.index])
             self.index = (self.index + 1) % len(self.files_list)
-        print("Images loaded")
         X, Y = list(map(mpimg.imread, file_names)), list(map(mpimg.imread, file_names_m))
         return X, Y
 
@@ -565,6 +562,142 @@ class ImageSegmentationFolderReader(object):
 
     def read_all(self):
         return self.read(len(self.files_list))
+
+class UnsupervisedBatchGeneratorFolder(object):
+    """
+    Generates batches of prepared images labeled with age group and gender.
+    """
+
+    def __init__(self, number_of_images, image_path, batch_size=100, patch_shape=(200, 200), stride=(160, 160), random_offset=(100, 100)):
+        """
+        :param pathX: path
+        :param image_path:
+        Each image should be a numpy array of shape (height, width, channels)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
+
+        self.reader = ImageUnsupervisedFolderReader(path=image_path)
+        self.X = self.reader.read(number_of_images)
+        self.batch_size = batch_size
+        self.index = 0
+        self.offset = np.random.randint(random_offset[1])
+        self.i = np.random.randint(random_offset[0])
+        self.j = self.offset
+
+        self.num_images = len(self.X)
+
+        self.patch_shape = patch_shape
+
+        self.stride = stride
+        self.random_offset = random_offset
+
+        self.image = self.X[self.index]
+
+    def mask(self, btch, color_thresholds=(220, 20, 20)):  # batch(batch_size, height, width, n_channels)
+        """
+        Calculates a binary mask of the marked area. If the marker wasn't clear enough, borders may be interpolated.
+        :return: An 4-D array of shape (batch_size, height, width, n_channels)
+        """
+        red, green, blue = btch[:, :, :, 0], btch[:, :, :, 1], btch[:, :, :, 2]
+        mask = (red > color_thresholds[0]) & (green < color_thresholds[1]) & (blue < color_thresholds[2])
+        mask = mask.astype(int)
+        mask = mask.reshape([btch.shape[0], btch.shape[1], btch.shape[2], 1])
+        return mask
+
+    def get_unsupervised_batch(self):
+        """
+        :return: A tuple of numpy arrays: (data_batch)
+        """
+        batch_patches = []
+
+        for i in range(self.batch_size):
+            patch = self.image[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
+            batch_patches.append(np.expand_dims(patch, 0))
+
+            self.j += self.stride[1]
+
+            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+
+                self.i += self.stride[0]
+                self.j = self.offset
+
+                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+
+                    self.i = np.random.randint(self.random_offset[0])
+                    self.offset = np.random.randint(self.random_offset[1])
+                    self.j = self.offset
+
+                    self.index += 1
+
+                    if self.index >= self.num_images:
+                        self.index = 0
+                        order = np.random.permutation(len(self.X))
+                        self.X = self.X[order]
+
+
+                    self.image = self.X[self.index]
+
+
+        return np.concatenate(batch_patches)
+
+    def get_supervised_batch(self):
+        raise NotImplementedError
+
+class ImageUnsupervisedFolderReader(object):
+    """
+    Cyclic reader of folders of images.
+    """
+    def __init__(self, path):
+        self.buffer_size = 100
+        _path = path if path[-1] == '/' else path + '/'
+        self.files_list = []
+        for (_, _, filenames) in os.walk(_path):
+            self.files_list.extend((_path + x for x in filenames))
+            break
+        self.index = 0
+
+    def add(self, path):
+        ind = path.find('.')
+        # if names of files are same in both folders delete _m ---------------------------------------------------------
+        path = path[:ind] + "_m" + path[ind:]
+        return path
+
+    def read(self, n):
+        """
+        :param n:
+        :return: a list of pictures as numpy arrays of shape (height, width, channels).
+        Shapes may differ for different images.
+        """
+        file_names = []
+        file_names_m = []
+        for i in range(n):
+            file_names.append(self.files_list[self.index])
+            self.index = (self.index + 1) % len(self.files_list)
+        X = list(map(mpimg.imread, file_names))
+        return X
+
+def test():
+    assert os.path.exists('data_w/package_1')
+    assert os.path.exists("data_w/mapped_1")
+    gen = SegmentationBatchGeneratorFolder(10, "data_w/package_1", "data_w/mapped_1", 10, (24, 24), (160, 160), (100, 100))
+    aug = Augmentor()
+    x, y = gen.get_supervised_batch()
+    assert x.shape == (10, 24, 24, 3)
+    gen = UnsupervisedBatchGeneratorFolder(10, "data_w/package_1", 10, (24, 24), (160, 160), (100, 100))
+    x = gen.get_unsupervised_batch()
+    assert x.shape == (10, 24, 24, 3)
+
+    # x = aug(x)
+    # y = aug(y)
+
+    # y = np.zeros_like(x) + y
+    # if you wan't to plot both images
+    # z = np.concatenate((x, y), 2)
+
+test()
 
 """
 Example^
