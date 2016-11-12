@@ -559,7 +559,6 @@ class ImageSegmentationFolderReader(object):
         return X, Y
 
 
-
     def read_all(self):
         return self.read(len(self.files_list))
 
@@ -697,7 +696,7 @@ def test():
     # if you wan't to plot both images
     # z = np.concatenate((x, y), 2)
 
-test()
+# test()
 
 """
 Example^
