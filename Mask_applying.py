@@ -38,4 +38,4 @@ def mask_filling(mask, effective=1):
         mask = (red > color_thresholds[0]) & (green < color_thresholds[1]) & (blue < color_thresholds[2])
         for i in batch:
             batch[i] = mask_filling(mask[i], effective)
-        return mask
+        return batch
