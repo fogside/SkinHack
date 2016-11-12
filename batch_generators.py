@@ -645,6 +645,7 @@ class UnsupervisedBatchGeneratorFolder(object):
     def get_supervised_batch(self):
         raise NotImplementedError
 
+
 class ImageUnsupervisedFolderReader(object):
     """
     Cyclic reader of folders of images.
@@ -678,6 +679,7 @@ class ImageUnsupervisedFolderReader(object):
         X = list(map(mpimg.imread, file_names))
         return X
 
+
 def test():
     assert os.path.exists('data_w/package_1')
     assert os.path.exists("data_w/mapped_1")
@@ -689,14 +691,121 @@ def test():
     x = gen.get_unsupervised_batch()
     assert x.shape == (10, 24, 24, 3)
 
-    # x = aug(x)
-    # y = aug(y)
 
-    # y = np.zeros_like(x) + y
-    # if you wan't to plot both images
-    # z = np.concatenate((x, y), 2)
+class TripleBatchGeneratorFolder(object):
+    """
+    Generates batches of prepared images without any labels.
+    """
 
-# test()
+    def __init__(self, path, batch_size, patch_shape, stride, random_offset):
+        """
+        :param path: path to folder containig images
+        Each image should be a numpy array of shape (height, width, channels)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
+        self.files_list = ImageFolderReader(path)
+        self.batch_size = batch_size
+        self.batch_remainder = batch_size
+
+        self.index = 0
+        self.offset = np.random.randint(random_offset[1])
+        self.i = np.random.randint(random_offset[0])
+        self.j = self.offset
+
+        self.num_images = len(self.files_list.files_list)
+
+        self.patch_shape = patch_shape
+
+        self.stride = stride
+        self.random_offset = random_offset
+
+        self.image  = self.files_list.read_one(self.index)
+        self.image2 = self.files_list.read_one(self.index + 1)
+
+    """
+    Collecting patches to make first pathes in each triple
+    """
+
+    def get_patches_from_first_image(self):
+        """
+        :return: A batch of data as a numpy array
+        """
+        batch_patches = []
+
+        for i in range(self.batch_size):
+            self.batch_remainder -= 1
+            patch = self.image[self.i: self.i + self.patch_shape[0], self.j: self.j + self.patch_shape[1]]
+            #print(patch.shape)
+            batch_patches.append(np.expand_dims(patch, 0))
+
+            self.j += self.stride[1]
+
+            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+
+                self.i += self.stride[0]
+                self.j = self.offset
+
+                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+
+                    self.i = np.random.randint(self.random_offset[0])
+                    self.offset = np.random.randint(self.random_offset[1])
+                    self.j = self.offset
+
+                    self.index += 1
+
+                    if self.index >= self.num_images:
+                        self.index = 0
+                        order = np.random.permutation(self.X.shape[0])
+                        self.X = self.X[order]
+
+                    self.image = self.files_list.read_one(self.index)
+                    return np.concatenate(batch_patches)
+
+            if self.batch_remainder == 0:
+                return np.concatenate(batch_patches)
+
+        return np.concatenate(batch_patches)
+
+    """
+    Getting random patch from image
+    """
+
+    def get_random_patch(self):
+        I = np.random.randint(self.image.shape[0] - self.patch_shape[0])
+        J = np.random.randint(self.image.shape[1] - self.patch_shape[1])
+        patch = self.image2[I: I + self.patch_shape[0], J: J + self.patch_shape[1]]
+        return patch
+
+    """
+    Making amount of triples
+    """
+
+    def get_triple_batch(self):
+        """
+        :return: A batch of data as a numpy array n x 3
+        """
+        triple_batch = []
+
+        while self.batch_remainder > 0:
+            first_im_patches = self.get_patches_from_first_image()
+            np.random.shuffle(first_im_patches)
+
+            for i in range(first_im_patches.shape[0]):
+                j = np.random.randint(len(self.files_list.files_list) - 2)
+                if j >= self.index:
+                    j += 1
+                self.image2 = self.files_list.read_one(j)
+                triple_batch.append([first_im_patches[i], first_im_patches[(i + 1) % first_im_patches.shape[0]], \
+                                     self.get_random_patch()])
+                # print(self.index, j)
+
+        self.batch_remainder = self.batch_size
+        #print ("shape of random patch", self.get_random_patch().shape)
+        #print ("shape of triple batch", np.array(triple_batch).shape)
+        return np.array(triple_batch)
 
 """
 Example^
