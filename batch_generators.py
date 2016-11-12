@@ -434,7 +434,8 @@ class SegmentationBatchGeneratorFolder(object):
     Generates batches of prepared images labeled with age group and gender.
     """
 
-    def __init__(self, number_of_images, image_path, mask_path, batch_size=100, patch_shape=(200, 200), stride=(160, 160), random_offset=(100, 100)):
+    def __init__(self, image_path, mask_path, batch_size=100, patch_shape=(200, 200), stride=(160, 160),
+                 random_offset=(100, 100), buffer_size=100):
         """
         :param pathX: path
         :param image_path:
@@ -447,7 +448,7 @@ class SegmentationBatchGeneratorFolder(object):
         """
 
         self.reader = ImageSegmentationFolderReader(path=image_path, path_m=mask_path)
-        self.X, self.Y = self.reader.read(number_of_images)
+        self.X, self.Y = self.reader.read(buffer_size)
         self.Y = self.mask(np.array(self.Y))
 
         self.batch_size = batch_size
@@ -455,8 +456,6 @@ class SegmentationBatchGeneratorFolder(object):
         self.offset = np.random.randint(random_offset[1])
         self.i = np.random.randint(random_offset[0])
         self.j = self.offset
-
-        self.num_images = len(self.X)
 
         self.patch_shape = patch_shape
 
@@ -466,11 +465,14 @@ class SegmentationBatchGeneratorFolder(object):
         self.image = self.X[self.index]
         self.segm = self.Y[self.index]
 
+        self.buffer_size = buffer_size
+
     def mask(self, btch, color_thresholds=(220, 20, 20)):  # batch(batch_size, height, width, n_channels)
         """
         Calculates a binary mask of the marked area. If the marker wasn't clear enough, borders may be interpolated.
         :return: An 4-D array of shape (batch_size, height, width, n_channels)
         """
+
         red, green, blue = btch[:, :, :, 0], btch[:, :, :, 1], btch[:, :, :, 2]
         mask = (red > color_thresholds[0]) & (green < color_thresholds[1]) & (blue < color_thresholds[2])
         mask = mask.astype(int)
@@ -505,11 +507,9 @@ class SegmentationBatchGeneratorFolder(object):
 
                     self.index += 1
 
-                    if self.index >= self.num_images:
+                    if self.index >= self.buffer_size:
                         self.index = 0
-                        order = np.random.permutation(len(X))
-                        self.X = self.X[order]
-                        self.Y = self.Y[order]
+                        self.X, self.Y = self.reader.read(self.buffer_size)
 
                     self.image = self.X[self.index]
                     self.segm = self.Y[self.index]
