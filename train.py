@@ -25,6 +25,7 @@ class Trainer(object):
         self.valid_inputs = valid_inputs
 
     def train(self, num_steps, model_file=None):
+        print("Train started for %d steps" % num_steps)
         sess = tf.Session()
         log = open(self.log_name, 'w')
         for i in range(num_steps):
