@@ -898,7 +898,11 @@ class AgeFolderReader(object):
 
         for i in range(len(imgs_list)):
             if imgs_list[i].shape != (1506, 2258, 3):
-                imgs_list[i] = imresize(imgs_list[i], (1506, 2258), interp='lanczos')
+                try:
+                    imgs_list[i] = imresize(imgs_list[i], (1506, 2258), interp='lanczos')
+                except:
+                    print(imgs_list[i].shape)
+                    raise
 
         return np.concatenate(imgs_list), \
                np.array(labels_age).reshape((-1, 1)), \
