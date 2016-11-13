@@ -33,10 +33,8 @@ def main(_):
 
     print('Load data')
 
-    path = 'data/ynet-wrinkles'
-    flist = [os.path.join(path, f) for f in os.listdir(path)]
-
-    traingen = data.WriDatagen(FLAGS, flist)
+    traingen = data.WriDatagen(FLAGS, 'data/ynet.train.npy')
+    valgen = data.WriDatagen(FLAGS, 'data/ynet.val.npy')
 
     # model = Model(FLAGS, '/cpu:0')
 
@@ -57,6 +55,20 @@ def main(_):
                 x, y = next(traingen)
                 loss, _, = sess.run([model.loss, model.train_op], {model.inputs: x, model.targets: y})
                 pbar.set_description("loss: {:.2f}, ".format(loss))
+
+            print('validation')
+
+            valgen.reset()
+            losses = []
+            pbar = tqdm(range(FLAGS.steps))
+            for _ in pbar:
+                x, y = next(valgen)
+                loss = sess.run(model.loss, {model.inputs: x, model.targets: y})
+                losses.append(loss)
+                pbar.set_description("loss: {:.2f}, ".format(loss))
+
+            print('val loss: {} '.format(np.mean(losses)))
+
 
 
 if __name__ == "__main__":
