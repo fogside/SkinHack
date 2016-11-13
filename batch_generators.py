@@ -475,7 +475,7 @@ class SegmentationBatchGeneratorFolder(object):
 
         red, green, blue = btch[:, :, :, 0], btch[:, :, :, 1], btch[:, :, :, 2]
         mask = (red > color_thresholds[0]) & (green < color_thresholds[1]) & (blue < color_thresholds[2])
-        mask = mask.astype(int)
+        mask = mask.astype(float)
         mask = mask.reshape([btch.shape[0], btch.shape[1], btch.shape[2], 1])
         return mask
 
@@ -494,12 +494,12 @@ class SegmentationBatchGeneratorFolder(object):
 
             self.j += self.stride[1]
 
-            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+            if self.j >= self.image.shape[1] - self.patch_shape[1] - 10:
 
                 self.i += self.stride[0]
                 self.j = self.offset
 
-                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+                if self.i >= self.image.shape[0] - self.patch_shape[0] - 10:
 
                     self.i = np.random.randint(self.random_offset[0])
                     self.offset = np.random.randint(self.random_offset[1])
@@ -558,6 +558,13 @@ class ImageSegmentationFolderReader(object):
             file_names.append(self.files_list[self.index])
             file_names_m.append(self.files_list_m[self.index])
             self.index = (self.index + 1) % len(self.files_list)
+            if self.index == len(self.files_list):
+                self.index = 0
+                state = np.random.get_state()
+                np.random.shuffle(file_names)
+                np.random.set_state(state)
+                np.random.shuffle(file_names_m)
+
         X, Y = list(map(mpimg.imread, file_names)), list(map(mpimg.imread, file_names_m))
         return X, Y
 
@@ -820,3 +827,167 @@ x = aug(gen.get_unsupervised_batch())
 plt.imshow(x[5])
 plt.show()
 """
+
+import re
+
+class AgeFolderReader(object):
+    """
+    Cyclic reader of folders of images.
+    """
+    def __init__(self):
+        path = 'data/ddp/'
+
+        self.files_list = []
+        for (_, _, filenames) in os.walk(path):
+            self.files_list.extend((path + x for x in filenames))
+            break
+
+        r = re.compile('\d+')
+
+        self.labels_age = [None] * len(self.files_list)
+        self.labels_gender = [None] * len(self.files_list)
+
+        def digits(s):
+            return r.findall(s)[0]
+
+        d = dict(((digits(self.files_list[i]), i) for i in range(len(self.files_list))))
+
+        labels = open('data/train_age_full.txt')
+
+        for s in labels:
+            fname, age, gend = s.split()
+            try:
+                fname = digits(fname)
+            except:
+                continue
+            try:
+                f_index = d[fname]
+                self.labels_age[f_index] = int(age)
+                self.labels_gender[f_index] = int(age)
+            except:
+                pass
+
+        for i in range(len(self.files_list) - 1, -1, -1):
+            if self.labels_age[i] is None or self.labels_gender[i] is None:
+                del self.labels_age[i], self.labels_gender[i], self.files_list[i]
+
+        self.labels_age = np.array(self.labels_age)
+        self.labels_gender = np.array(self.labels_gender)
+        self.index = 0
+
+    def read(self, n):
+        """
+        :param n:
+        :return: a list of pictures as numpy arrays of shape (height, width, channels).
+        Shapes may differ for different images.
+        """
+        file_names = []
+        labels_age = []
+        labels_gender = []
+        for i in range(n):
+            file_names.append(self.files_list[self.index])
+            labels_age.append(self.labels_age[self.index])
+            labels_gender.append(self.labels_gender[self.index])
+            self.index = (self.index + 1)
+            if self.index == len(self.files_list):
+                self.index = 0
+                state = np.random.get_state()
+                np.random.shuffle(file_names)
+                np.random.set_state(state)
+                np.random.shuffle(labels_age)
+                np.random.set_state(state)
+                np.random.shuffle(labels_gender)
+
+        return list(map(mpimg.imread, file_names)), \
+               np.array(labels_age).reshape((-1, 1)), \
+               np.array(labels_gender).reshape((-1, 1))
+
+    def read_all(self):
+        return self.read(len(self.files_list))
+
+
+class AgeGenderBatchGeneratorFolder(object):
+    """
+    Generates batches of prepared images labeled with age group and gender.
+    """
+    def __init__(self, batch_size, patch_shape, stride, random_offset, buffer_size=100):
+        """
+        :param X: python list or numpy array of images.
+        Each image should be a numpy array of shape (height, width, channels)
+        :param age: python list or numpy array of age group or age labels
+        Each label should be a numpy array of shape (1,)
+        :param gender: python list or numpy array of gender labels
+        Each label should be a numpy array of shape (1,)
+        :param batch_size: number of samples returned by single call.
+        :param patch_shape: tuple, shape of patches sampled from the images (height, width)
+        :param stride: tuple, stride step sizes (vertical, horizontal)
+        :param random_offset: tuple, maximum values of random initial offsets (vertical, horizontal)
+        """
+        self.reader = AgeFolderReader()
+
+        self.X, self.age, self.gender = self.reader.read(buffer_size)
+        self.batch_size = batch_size
+
+        self.index = 0
+        self.offset = np.random.randint(random_offset[1])
+        self.i = np.random.randint(random_offset[0])
+        self.j = self.offset
+
+        self.num_images = len(self.X)
+
+        self.patch_shape = patch_shape
+
+        self.stride = stride
+        self.random_offset = random_offset
+
+        self.image = self.X[self.index]
+        self.cur_age = self.age[self.index: self.index + 1]
+        self.cur_gender = self.age[self.index: self.index + 1]
+
+    def get_supervised_batch(self):
+        """
+        :return: A tuple of numpy arrays: (data_batch, age_labels, gender_labels)
+        """
+        batch_patches = []
+        batch_age = []
+        batch_gender = []
+
+        for i in range(self.batch_size):
+
+            patch = self.image[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
+            batch_patches.append(np.expand_dims(patch, 0))
+            batch_age.append(self.cur_age)
+            batch_gender.append(self.cur_gender)
+
+            self.j += self.stride[1]
+
+            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+
+                self.i += self.stride[0]
+                self.j = self.offset
+
+                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+
+                    self.i = np.random.randint(self.random_offset[0])
+                    self.offset = np.random.randint(self.random_offset[1])
+                    self.j = self.offset
+
+                    self.index += 1
+
+                    if self.index >= self.num_images:
+                        self.index = 0
+                        self.X, self.age, self.gender = self.reader.read(self.buffer_size)
+
+                    self.image = self.X[self.index]
+                    self.cur_age = self.age[self.index: self.index + 1]
+                    self.cur_gender = self.age[self.index: self.index + 1]
+
+        return np.concatenate(batch_patches), np.concatenate(batch_age), np.concatenate(batch_gender)
+
+    def get_unsupervised_batch(self):
+        """
+        :return: A batch of data as a numpy array
+        """
+        batch_X, _, _ = self.get_supervised_batch()
+
+        return batch_X
