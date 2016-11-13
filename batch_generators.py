@@ -300,7 +300,6 @@ class Augmentor(object):
 
     def __call__(self, image_batch, mask_batch=None):
         state = np.random.get_state()
-
         aug_image_batch = np.array(image_batch)
         for i in range(image_batch.shape[0]):
             aug_image_batch[i] = self.image_augmentor.random_transform(image_batch[i])
@@ -423,7 +422,6 @@ class TripleBatchGenerator(object):
                 self.image2 = self.X[j]
                 triple_batch.append([first_im_patches[i], first_im_patches[(i + 1) % first_im_patches.shape[0]], \
                                      self.get_random_patch()])
-                # print(self.index, j)
 
         self.batch_remainder = self.batch_size
         return np.array(triple_batch)
@@ -747,7 +745,6 @@ class TripleBatchGeneratorFolder(object):
         for i in range(self.batch_size):
             self.batch_remainder -= 1
             patch = self.image[self.i: self.i + self.patch_shape[0], self.j: self.j + self.patch_shape[1]]
-            #print(patch.shape)
             batch_patches.append(np.expand_dims(patch, 0))
 
             self.j += self.stride[1]
@@ -807,11 +804,8 @@ class TripleBatchGeneratorFolder(object):
                 self.image2 = self.files_list.read_by_index(j)
                 triple_batch.append([first_im_patches[i], first_im_patches[(i + 1) % first_im_patches.shape[0]], \
                                      self.get_random_patch()])
-                # print(self.index, j)
 
         self.batch_remainder = self.batch_size
-        #print ("shape of random patch", self.get_random_patch().shape)
-        #print ("shape of triple batch", np.array(triple_batch).shape)
         return np.array(triple_batch)
 
 """
@@ -898,7 +892,7 @@ class AgeFolderReader(object):
                 np.random.set_state(state)
                 np.random.shuffle(labels_gender)
 
-        return list(map(mpimg.imread, file_names)), \
+        return np.concatenate(list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))), \
                np.array(labels_age).reshape((-1, 1)), \
                np.array(labels_gender).reshape((-1, 1))
 
@@ -926,6 +920,7 @@ class AgeGenderBatchGeneratorFolder(object):
         self.reader = AgeFolderReader()
 
         self.X, self.age, self.gender = self.reader.read(buffer_size)
+
         self.batch_size = batch_size
         self.augmentor = Augmentor(rotation_range=30, width_shift_range=0., height_shift_range=0.,
                                    shear_range=0.05, zoom_range=0.3, fill_mode='reflect', )
@@ -942,7 +937,6 @@ class AgeGenderBatchGeneratorFolder(object):
         self.stride = stride
         self.random_offset = random_offset
 
-        self.image = self.X[self.index] / 255.
         self.cur_age = self.age[self.index: self.index + 1]
         self.cur_gender = self.age[self.index: self.index + 1]
         self.buffer_size = buffer_size
@@ -953,49 +947,34 @@ class AgeGenderBatchGeneratorFolder(object):
         """
         :return: A tuple of numpy arrays: (data_batch, age_labels, gender_labels)
         """
-        batch_patches = []
-        batch_age = []
-        batch_gender = []
 
-        for i in range(self.batch_size):
-            patch = self.image[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
-            batch_patches.append(np.expand_dims(patch, 0))
-            batch_age.append(self.cur_age)
-            batch_gender.append(self.cur_gender)
+        patch = self.X[:, self.i : (self.i + self.patch_shape[0]), self.j : (self.j + self.patch_shape[1]), :]
 
-            self.j += self.stride[1]
+        self.j += self.stride[1]
 
-            if self.j >= self.image.shape[1] - self.patch_shape[1]:
+        if self.j >= self.X.shape[2] - self.patch_shape[1]:
 
-                self.i += self.stride[0]
+            self.i += self.stride[0]
+            self.j = self.offset
+
+            if self.i >= self.X.shape[1] - self.patch_shape[0]:
+
+                self.i = np.random.randint(self.random_offset[0])
+                self.offset = np.random.randint(self.random_offset[1])
                 self.j = self.offset
 
-                if self.i >= self.image.shape[0] - self.patch_shape[0]:
+                self.reuse_count += 1
+                if self.reuse_count == self.reuse_buffer:
+                    self.X, self.age, self.gender = self.reader.read(self.buffer_size)
+                else:
+                    state = np.random.get_state()
+                    np.random.shuffle(self.X)
+                    np.random.set_state(state)
+                    np.random.shuffle(self.age)
+                    np.random.set_state(state)
+                    np.random.shuffle(self.gender)
 
-                    self.i = np.random.randint(self.random_offset[0])
-                    self.offset = np.random.randint(self.random_offset[1])
-                    self.j = self.offset
-
-                    self.index += 1
-
-                    if self.index >= self.num_images:
-                        self.index = 0
-                        self.reuse_count += 1
-                        if self.reuse_count == self.reuse_buffer:
-                            self.X, self.age, self.gender = self.reader.read(self.buffer_size)
-                        else:
-                            state = np.random.get_state()
-                            np.random.shuffle(self.X)
-                            np.random.set_state(state)
-                            np.random.shuffle(self.age)
-                            np.random.set_state(state)
-                            np.random.shuffle(self.gender)
-
-                    self.image = self.X[self.index]
-                    self.cur_age = self.age[self.index: self.index + 1]
-                    self.cur_gender = self.age[self.index: self.index + 1]
-
-        return self.augmentor(np.concatenate(batch_patches)), np.concatenate(batch_age), np.concatenate(batch_gender)
+        return patch, self.age, self.gender
 
     def get_unsupervised_batch(self):
         """
