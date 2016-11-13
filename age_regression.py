@@ -52,7 +52,7 @@ train_loss = tf.nn.softmax_cross_entropy_with_logits(train_logits, y_train)
 train_mse = tf.nn.l2_loss(tf.cast(tf.arg_max(train_logits, 1) - tf.argmax(y_train, 1), tf.float32)) ** 0.5
 
 valid_logits = cnn(X_valid, use_dropout=False, reuse=True)
-valid_loss = tf.nn.softmax_cross_entropy_with_logits(train_logits, y_valid)
+valid_loss = tf.nn.softmax_cross_entropy_with_logits(valid_logits, y_valid)
 valid_mse = tf.nn.l2_loss(tf.cast(tf.arg_max(valid_logits, 1) - tf.argmax(y_valid, 1), tf.float32)) ** 0.5
 
 optimizer = tf.train.AdagradOptimizer(1.).minimize(train_loss)
