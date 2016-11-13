@@ -897,7 +897,7 @@ class AgeFolderReader(object):
         print(n, len(file_names))
         imgs_list = list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))
         for i in range(n):
-            print('#', mpimg.imread(imgs_list).shape)
+            print('#', mpimg.imread(imgs_list[i]).shape)
 
 
         print(mpimg.imread(file_names[0]).shape)
