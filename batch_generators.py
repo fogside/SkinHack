@@ -894,9 +894,11 @@ class AgeFolderReader(object):
                 np.random.set_state(state)
                 np.random.shuffle(labels_gender)
 
+        print(mpimg.imread(file_names[0]).shape)
         imgs_list = list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))
 
         for i in range(len(imgs_list)):
+            #print(imgs_list[i].shape)
             if imgs_list[i].shape != (1506, 2258, 3):
                 try:
                     imgs_list[i] = imresize(imgs_list[i], (1506, 2258), interp='lanczos')
