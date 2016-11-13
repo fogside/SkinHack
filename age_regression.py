@@ -32,6 +32,7 @@ def cnn(X, reuse=None, use_dropout=True, scope=None):
             X = layers.convolution2d(X, 64, (3, 3), 1, reuse=reuse, scope='conv2')
             X = layers.max_pool2d(X, (3, 3), 2)  # 64, 64
 
+        X /= 255.
         X = conv_block(X, 64, reuse=reuse,  scope='conv_block1')
         X = conv_block(X, 128, reuse=reuse, scope='conv_block2')
         X = conv_block(X, 256, reuse=reuse, scope='conv_block3')
