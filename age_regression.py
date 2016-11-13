@@ -67,7 +67,7 @@ def get_batch():
     global n_step
     X, y, _ = gen.get_supervised_batch()
     _y = np.zeros((X.shape[0], output_size), dtype=np.float32)
-    _y[np.arange(_y.shape[0]), y] = np.float32(1.)
+    _y[np.arange(_y.shape[0]), (y * output_size) // 100] = np.float32(1.)
     _y = filters.gaussian_filter1d(_y, 4. / n_step ** 0.25)
     n_step += 1
     return X, _y
