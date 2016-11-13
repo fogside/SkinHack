@@ -927,8 +927,8 @@ class AgeGenderBatchGeneratorFolder(object):
 
         self.X, self.age, self.gender = self.reader.read(buffer_size)
         self.batch_size = batch_size
-        self.augmentor = Augmentor(rotation_range=30, width_shift_range=0., height_shift_range=0.,
-                                   shear_range=0.05, zoom_range=0.3, fill_mode='reflect', )
+        self.augmentor = Augmentor(rotation_range=0, width_shift_range=0., height_shift_range=0.,
+                                   shear_range=0, zoom_range=0, fill_mode='reflect', )
 
         self.index = 0
         self.offset = np.random.randint(random_offset[1])
