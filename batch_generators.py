@@ -901,6 +901,7 @@ class AgeFolderReader(object):
             print(i, imgs_list[i].shape)
             if imgs_list[i].shape != (1506, 2258, 3):
                 try:
+                    print('   ', i, imgs_list[i].shape)
                     imgs_list[i] = imresize(imgs_list[i], (1506, 2258), interp='lanczos')
                 except:
                     print(imgs_list[i].shape)
