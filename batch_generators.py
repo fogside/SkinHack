@@ -898,7 +898,7 @@ class AgeFolderReader(object):
         imgs_list = list(map(mpimg.imread, file_names))
         for i in range(n):
             if imgs_list[i].shape != (1506, 2258, 3):
-                imresize(imgs_list[i], (1506, 2258))
+                imgs_list[i] = imresize(imgs_list[i], (1506, 2258))
             imgs_list[i] = np.expand_dims(imgs_list[i], 0)
 
         for i in range(n):
