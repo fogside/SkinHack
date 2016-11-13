@@ -896,7 +896,7 @@ class AgeFolderReader(object):
 
         print(mpimg.imread(file_names[0]).shape)
         imgs_list = list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))
-
+        print(imgs_list[0].shape)
         for i in range(len(imgs_list)):
             #print(imgs_list[i].shape)
             if imgs_list[i].shape != (1506, 2258, 3):
