@@ -44,8 +44,6 @@ class Trainer(object):
         log = open(self.log_name, 'w')
         for i in range(num_steps):
 
-            t1 = time()
-
             if len(self.batch_pool2) == self.batch_pool_size:
                 k = np.random.randint(self.batch_pool_size)
                 batch = self.batch_pool2[k]
@@ -62,8 +60,6 @@ class Trainer(object):
             feed_dict = {self.inputs[i]: batch[i] for i in range(len(self.inputs))}
 
             sess.run(self.optimizer, feed_dict=feed_dict)
-            t2 = time()
-            print('gradient step time:', t2 - t1)
 
             if i % self.valid_freq == 0:
                 print("Step: " + str(i))
