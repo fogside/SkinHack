@@ -66,6 +66,6 @@ class Trainer(object):
                         print('validation ' + self.metric_valid_names[i] + ' ' + str(metric_values[i]))
                     log.write("---\n")
 
-            if self.save_name is not None and i % self.save_name == self.save_freq - 1:
+            if self.save_name is not None and i % self.save_freq == self.save_freq - 1:
                 saver = tf.train.Saver()
                 saver.save(sess, "models/%s_%d.ckpt" % (self.save_name, i))
