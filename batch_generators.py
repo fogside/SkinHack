@@ -863,7 +863,7 @@ class AgeFolderReader(object):
             try:
                 f_index = d[fname]
                 self.labels_age[f_index] = int(age)
-                self.labels_gender[f_index] = int(age)
+                self.labels_gender[f_index] = 0 if gend == 'w' else 1
             except:
                 pass
 
