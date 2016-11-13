@@ -928,7 +928,7 @@ class AgeGenderBatchGeneratorFolder(object):
         self.X, self.age, self.gender = self.reader.read(buffer_size)
         self.batch_size = batch_size
         self.augmentor = Augmentor(rotation_range=30, width_shift_range=0., height_shift_range=0.,
-                                   shear_range=0.05, zoom_range=0.3, fill_mode='reflect')
+                                   shear_range=0.05, zoom_range=0.3, fill_mode='reflect', )
 
         self.index = 0
         self.offset = np.random.randint(random_offset[1])
@@ -942,7 +942,7 @@ class AgeGenderBatchGeneratorFolder(object):
         self.stride = stride
         self.random_offset = random_offset
 
-        self.image = self.X[self.index]
+        self.image = self.X[self.index] / 255.
         self.cur_age = self.age[self.index: self.index + 1]
         self.cur_gender = self.age[self.index: self.index + 1]
         self.buffer_size = buffer_size
@@ -991,7 +991,7 @@ class AgeGenderBatchGeneratorFolder(object):
                             np.random.set_state(state)
                             np.random.shuffle(self.gender)
 
-                    self.image = self.X[self.index]
+                    self.image = self.X[self.index] / 255.
                     self.cur_age = self.age[self.index: self.index + 1]
                     self.cur_gender = self.age[self.index: self.index + 1]
 
