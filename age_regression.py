@@ -41,28 +41,28 @@ def cnn(X, reuse=None, use_dropout=True, scope=None):
 
 
 with tf.variable_scope('inputs'):
-    X_train = tf.placeholder(dtype=tf.float32, shape=(None, 128, 128, 3), name='X')
+    X_train = tf.placeholder(dtype=tf.float32, shape=(None, 486, 486, 3), name='X')
     y_train = tf.placeholder(dtype=tf.float32, shape=(None, 100), name='y')
 
-    X_valid = tf.placeholder(dtype=tf.float32, shape=(None, 128, 128, 3), name='X')
+    X_valid = tf.placeholder(dtype=tf.float32, shape=(None, 486, 486, 3), name='X')
     y_valid = tf.placeholder(dtype=tf.float32, shape=(None, 100), name='y')
 
 train_logits = cnn(X_train)
 train_loss = tf.nn.softmax_cross_entropy_with_logits(train_logits, y_train)
-train_mse = tf.nn.l2_loss(tf.arg_max(train_logits, 1) - tf.argmax(y_train, 1))
+train_mse = tf.nn.l2_loss(tf.cast(tf.arg_max(train_logits, 1) - tf.argmax(y_train, 1), tf.float32))
 
 valid_logits = cnn(X_train, use_dropout=False, reuse=True)
 valid_loss = tf.nn.softmax_cross_entropy_with_logits(train_logits, y_train)
-valid_mse = tf.nn.l2_loss(tf.arg_max(valid_logits, 1) - tf.argmax(y_valid, 1))
+valid_mse = tf.nn.l2_loss(tf.cast(tf.arg_max(valid_logits, 1) - tf.argmax(y_valid, 1), tf.float32))
 
 optimizer = tf.train.AdagradOptimizer(1.).minimize(train_loss)
 
-n_step = 0
+n_step = 1
 def get_batch():
     global n_step
     X, y, _ = gen.get_supervised_batch()
     _y = np.zeros((X.shape[0], 100), dtype=np.float32)
-    _y[y] = np.float32(1.)
+    _y[np.arange(_y.shape[0]), y] = np.float32(1.)
     _y = filters.gaussian_filter1d(_y, 10. / n_step ** 0.25)
     n_step += 1
     return X, _y
@@ -71,5 +71,6 @@ def get_batch():
 trainer = Trainer(optimizer, [X_train, y_train], get_batch, [X_valid, y_valid], get_batch,
                   metrics_train=[('train_loss', train_loss), ('train_MSE', train_mse)],
                   metrics_valid=[('valid_loss', valid_loss), ('valid_MSE', valid_mse)],
-                  log_name='age_regression_cnn.log', save_name='age_regression_cnn')
+                  log_name='age_regression_cnn.log', save_name='age_regression_cnn_simple')
 
+trainer.train(200000)

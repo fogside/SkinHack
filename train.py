@@ -31,8 +31,11 @@ class Trainer(object):
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
         if self.save_name is not None:
-            saver = tf.train.Saver()
-            saver.restore(sess, "models/%s.ckpt" % self.save_name)
+            try:
+                saver = tf.train.Saver()
+                saver.restore(sess, "models/%s.ckpt" % self.save_name)
+            except:
+                pass
         log = open(self.log_name, 'w')
         for i in range(num_steps):
             batch = self.batch_func_train()
