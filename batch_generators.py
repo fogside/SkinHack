@@ -898,21 +898,8 @@ class AgeFolderReader(object):
         imgs_list = list(map(mpimg.imread, file_names))
         for i in range(n):
             if imgs_list[i].shape != (1506, 2258, 3):
-                imresize(imgs_list[i], (1506, 2258), interp='lanczos')
-
-
-        print(mpimg.imread(file_names[0]).shape)
-
-        print(imgs_list[2].shape)
-        for i in range(len(imgs_list)):
-            print(i, imgs_list[i].shape)
-            if imgs_list[i].shape != (1506, 2258, 3):
-                try:
-                    print('   ', i, imgs_list[i].shape)
-                    imgs_list[i] = imresize(imgs_list[i], (1506, 2258), interp='lanczos')
-                except:
-                    print(imgs_list[i].shape)
-                    raise
+                imresize(imgs_list[i], (1506, 2258))
+            imgs_list[i] = np.expand_dims(imgs_list[i], 0)
 
         return np.concatenate(imgs_list), \
                np.array(labels_age).reshape((-1, 1)), \
