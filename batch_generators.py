@@ -892,6 +892,7 @@ class AgeFolderReader(object):
                 np.random.set_state(state)
                 np.random.shuffle(labels_gender)
 
+        #print(list(map(lambda x: x.shape, map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))))
         return np.concatenate(list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))), \
                np.array(labels_age).reshape((-1, 1)), \
                np.array(labels_gender).reshape((-1, 1))
