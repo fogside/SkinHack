@@ -6,7 +6,7 @@ import tensorflow.contrib.layers as layers
 
 input_size = 512
 batch_size = 16
-output_size = 100
+output_size = 50
 
 gen = AgeGenderBatchGeneratorFolder(batch_size, (input_size, input_size),
                                     (int(input_size * 0.8), int(input_size * 0.8)),
@@ -32,12 +32,13 @@ def cnn(X, reuse=None, use_dropout=True, scope=None):
             X = layers.convolution2d(X, 64, (3, 3), 1, reuse=reuse, scope='conv2')
             X = layers.max_pool2d(X, (3, 3), 2)  # 64, 64
 
-        X = conv_block(X, 64, reuse=reuse, scope='conv_block1')
+        X = conv_block(X, 64, reuse=reuse,  scope='conv_block1')
         X = conv_block(X, 128, reuse=reuse, scope='conv_block2')
+        X = conv_block(X, 256, reuse=reuse, scope='conv_block2')
         X = tf.reduce_mean(X, [1, 2])
         if use_dropout:
             X = tf.nn.dropout(X, 0.5)
-        X = layers.fully_connected(X, 256, reuse=reuse, scope='fully_connected')
+        X = layers.fully_connected(X, 128, reuse=reuse, scope='fully_connected')
         if use_dropout:
             X = tf.nn.dropout(X, 0.7)
         X = layers.fully_connected(X, output_size, reuse=reuse, scope='output', activation_fn=tf.identity)
