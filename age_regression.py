@@ -34,7 +34,7 @@ def cnn(X, reuse=None, use_dropout=True, scope=None):
 
         X = conv_block(X, 64, reuse=reuse,  scope='conv_block1')
         X = conv_block(X, 128, reuse=reuse, scope='conv_block2')
-        X = conv_block(X, 256, reuse=reuse, scope='conv_block2')
+        X = conv_block(X, 256, reuse=reuse, scope='conv_block3')
         X = tf.reduce_mean(X, [1, 2])
         if use_dropout:
             X = tf.nn.dropout(X, 0.5)
