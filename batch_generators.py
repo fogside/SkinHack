@@ -910,7 +910,7 @@ class AgeGenderBatchGeneratorFolder(object):
     """
     Generates batches of prepared images labeled with age group and gender.
     """
-    def __init__(self, batch_size, patch_shape, stride, random_offset, buffer_size=100):
+    def __init__(self, batch_size, patch_shape, stride, random_offset, buffer_size=100, reuse_buffer=4):
         """
         :param X: python list or numpy array of images.
         Each image should be a numpy array of shape (height, width, channels)
@@ -927,6 +927,8 @@ class AgeGenderBatchGeneratorFolder(object):
 
         self.X, self.age, self.gender = self.reader.read(buffer_size)
         self.batch_size = batch_size
+        self.augmentor = Augmentor(rotation_range=30, width_shift_range=0., height_shift_range=0.,
+                                   shear_range=0.05, zoom_range=0.3, fill_mode='reflect')
 
         self.index = 0
         self.offset = np.random.randint(random_offset[1])
@@ -943,6 +945,9 @@ class AgeGenderBatchGeneratorFolder(object):
         self.image = self.X[self.index]
         self.cur_age = self.age[self.index: self.index + 1]
         self.cur_gender = self.age[self.index: self.index + 1]
+        self.buffer_size = buffer_size
+        self.reuse_buffer = reuse_buffer
+        self.reuse_count = 0
 
     def get_supervised_batch(self):
         """
@@ -953,7 +958,6 @@ class AgeGenderBatchGeneratorFolder(object):
         batch_gender = []
 
         for i in range(self.batch_size):
-
             patch = self.image[self.i:self.i + self.patch_shape[0], self.j:self.j + self.patch_shape[1]]
             batch_patches.append(np.expand_dims(patch, 0))
             batch_age.append(self.cur_age)
@@ -976,13 +980,22 @@ class AgeGenderBatchGeneratorFolder(object):
 
                     if self.index >= self.num_images:
                         self.index = 0
-                        self.X, self.age, self.gender = self.reader.read(self.buffer_size)
+                        self.reuse_count += 1
+                        if self.reuse_count == self.reuse_buffer:
+                            self.X, self.age, self.gender = self.reader.read(self.buffer_size)
+                        else:
+                            state = np.random.get_state()
+                            np.random.shuffle(self.X)
+                            np.random.set_state(state)
+                            np.random.shuffle(self.age)
+                            np.random.set_state(state)
+                            np.random.shuffle(self.gender)
 
                     self.image = self.X[self.index]
                     self.cur_age = self.age[self.index: self.index + 1]
                     self.cur_gender = self.age[self.index: self.index + 1]
 
-        return np.concatenate(batch_patches), np.concatenate(batch_age), np.concatenate(batch_gender)
+        return self.augmentor(np.concatenate(batch_patches)), np.concatenate(batch_age), np.concatenate(batch_gender)
 
     def get_unsupervised_batch(self):
         """
