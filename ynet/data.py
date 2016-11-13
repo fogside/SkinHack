@@ -6,31 +6,17 @@ from tqdm import tqdm
 import os
 
 
-def _load_crop(fname, args):
-    try:
-        img = np.load(fname)
-        # pick size
-        size = np.random.randint(args.min_size, args.max_size)
-        a, b, _ = img.shape
-        # pick upper-left corner
-        x, y = np.random.randint(0, a - size), np.random.randint(0, b - size)
-        patch = img[x: x + size, y: y + size, :]
-        return resize(patch, (args.width, args.height))
-    except Exception as err:
-        print(err, fname)
-
-
 class WriDatagen:
-    def __init__(self, args, dataset):
-        self.dataset = dataset
+    def __init__(self, args, path):
+        self.dataset = np.load(path)
         self.args = args
 
-        self.pointer = cycle(iter(self.dataset))
+        self.pointer = cycle(iter(range(len(self.dataset))))
         self.x = np.zeros((args.batch_size, args.width, args.height, 3), dtype=np.float32)
         self.y = np.zeros((args.batch_size, args.width, args.height), dtype=np.float32)
 
     def reset(self):
-        self.pointer = cycle(iter(self.dataset))
+        self.pointer = cycle(iter(range(len(self.dataset))))
 
     def next(self):
         self.x.fill(0.0)
@@ -38,9 +24,8 @@ class WriDatagen:
 
         for i in range(self.args.batch_size):
             sample = next(self.pointer)
-            z = _load_crop(sample, self.args)
-            self.x[i, ...] = z[:, :, :3]
-            self.y[i, ...] = z[:, :, 3]
+            self.x[i, ...] = self.dataset[sample, :, :, :3]
+            self.y[i, ...] = self.dataset[sample, :, :, 3]
 
         return self.x, self.y
 
