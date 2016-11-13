@@ -60,7 +60,7 @@ class Model:
 
             self.loss = cost
             self.lr = tf.Variable(0.0, trainable=False)
-            optimizer = tf.train.GradientDescentOptimizer(self.lr)
+            optimizer = tf.train.AdamOptimizer(self.lr)
             self.train_op = optimizer.minimize(self.loss, )
 
         with tf.device('/cpu:0'):
