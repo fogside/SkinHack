@@ -1,6 +1,6 @@
 import tensorflow as tf
 from operator import itemgetter
-
+from time import time
 
 class Trainer(object):
     def __init__(self, optimizer,
@@ -38,10 +38,18 @@ class Trainer(object):
                 pass
         log = open(self.log_name, 'w')
         for i in range(num_steps):
+
+            t1 = time()
             batch = self.batch_func_train()
+            t2 = time()
+            print('batch generation time:', t2 - t1)
+
             feed_dict = {self.inputs[i]: batch[i] for i in range(len(self.inputs))}
 
+            t1 = time()
             sess.run(self.optimizer, feed_dict=feed_dict)
+            t2 = time()
+            print('gradient step time:', t2 - t1)
 
             if i % self.valid_freq == 0:
                 print("Step: " + str(i))
