@@ -1,12 +1,14 @@
 import tensorflow as tf
 from operator import itemgetter
 from time import time
+import numpy as np
 
 class Trainer(object):
     def __init__(self, optimizer,
                  train_inputs, batch_func_train,
                  valid_inputs=None, batch_func_valid=None,
-                 metrics_train=(), metrics_valid=(), valid_freq=100, save_freq=2000, log_name='log.txt', save_name=None):
+                 metrics_train=(), metrics_valid=(), valid_freq=100, save_freq=2000, log_name='log.txt',
+                 save_name=None, batch_pool_size=10):
 
         self.batch_func_train = batch_func_train
         self.batch_func_valid = batch_func_valid
@@ -25,6 +27,9 @@ class Trainer(object):
         self.valid_inputs = valid_inputs
         self.save_freq = save_freq
         self.save_name = save_name
+        self.batch_pool1 = []
+        self.batch_pool2 = []
+        self.batch_pool_size = batch_pool_size
 
     def train(self, num_steps, model_file=None):
         print("Train started for %d steps" % num_steps)
@@ -40,13 +45,22 @@ class Trainer(object):
         for i in range(num_steps):
 
             t1 = time()
-            batch = self.batch_func_train()
-            t2 = time()
-            print('batch generation time:', t2 - t1)
+
+            if len(self.batch_pool2) == self.batch_pool_size:
+                k = np.random.randint(self.batch_pool_size)
+                batch = self.batch_pool2[k]
+                del self.batch_pool2[k]
+            elif len(self.batch_pool1) == self.batch_pool_size:
+                k = np.random.randint(self.batch_pool_size)
+                batch = self.batch_pool1[k]
+                del self.batch_pool1[k]
+            else:
+                batch = self.batch_func_train()
+                self.batch_pool1.append(batch)
+                self.batch_pool2.append(batch)
 
             feed_dict = {self.inputs[i]: batch[i] for i in range(len(self.inputs))}
 
-            t1 = time()
             sess.run(self.optimizer, feed_dict=feed_dict)
             t2 = time()
             print('gradient step time:', t2 - t1)

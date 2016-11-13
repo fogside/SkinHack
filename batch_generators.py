@@ -904,7 +904,7 @@ class AgeGenderBatchGeneratorFolder(object):
     """
     Generates batches of prepared images labeled with age group and gender.
     """
-    def __init__(self, batch_size, patch_shape, stride, random_offset, buffer_size=100, reuse_buffer=4):
+    def __init__(self, batch_size, patch_shape, stride, random_offset, reuse_buffer=2):
         """
         :param X: python list or numpy array of images.
         Each image should be a numpy array of shape (height, width, channels)
@@ -919,7 +919,7 @@ class AgeGenderBatchGeneratorFolder(object):
         """
         self.reader = AgeFolderReader()
 
-        self.X, self.age, self.gender = self.reader.read(buffer_size)
+        self.X, self.age, self.gender = self.reader.read(batch_size)
 
         self.batch_size = batch_size
         self.augmentor = Augmentor(rotation_range=30, width_shift_range=0., height_shift_range=0.,
@@ -939,7 +939,7 @@ class AgeGenderBatchGeneratorFolder(object):
 
         self.cur_age = self.age[self.index: self.index + 1]
         self.cur_gender = self.age[self.index: self.index + 1]
-        self.buffer_size = buffer_size
+
         self.reuse_buffer = reuse_buffer
         self.reuse_count = 0
 
@@ -965,7 +965,7 @@ class AgeGenderBatchGeneratorFolder(object):
 
                 self.reuse_count += 1
                 if self.reuse_count == self.reuse_buffer:
-                    self.X, self.age, self.gender = self.reader.read(self.buffer_size)
+                    self.X, self.age, self.gender = self.reader.read(self.batch_size)
                 else:
                     state = np.random.get_state()
                     np.random.shuffle(self.X)
