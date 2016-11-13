@@ -6,6 +6,8 @@ import matplotlib.image as mpimg
 from utils import _start_shell
 from keras.preprocessing.image import ImageDataGenerator
 
+from scipy.misc import imresize
+
 
 class AgeGenderBatchGenerator(object):
     """
@@ -892,8 +894,13 @@ class AgeFolderReader(object):
                 np.random.set_state(state)
                 np.random.shuffle(labels_gender)
 
-        #print(list(map(lambda x: x.shape, map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))))
-        return np.concatenate(list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))), \
+        imgs_list = list(map(lambda name: np.expand_dims(mpimg.imread(name), 0), file_names))
+
+        for i in range(len(imgs_list)):
+            if imgs_list[i].shape != (1506, 2258, 3):
+                imgs_list[i] = imresize(imgs_list[i], (1506, 2258), interp='lanczos')
+
+        return np.concatenate(imgs_list), \
                np.array(labels_age).reshape((-1, 1)), \
                np.array(labels_gender).reshape((-1, 1))
 
