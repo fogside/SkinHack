@@ -61,7 +61,7 @@ valid_logits = cnn(X_valid, use_dropout=False, reuse=True)
 valid_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(valid_logits, y_valid))
 valid_mse = tf.reduce_mean(tf.nn.l2_loss(tf.cast(tf.arg_max(valid_logits, 1) - tf.argmax(y_valid, 1), tf.float32))) ** 0.5
 
-optimizer = tf.train.AdadeltaOptimizer(1.).minimize(train_loss)
+optimizer = tf.train.AdadeltaOptimizer(0.5).minimize(train_loss)
 
 n_step = 1
 def get_batch():
